@@ -1,3 +1,4 @@
+from fileinput import filename
 import torch
 import cv2
 import lietorch
@@ -9,6 +10,8 @@ import open3d as o3d
 
 from lietorch import SE3
 import geom.projective_ops as pops
+
+import open3d.visualization.gui as gui
 
 CAM_POINTS = np.array([
         [ 0,   0,   0],
@@ -73,6 +76,42 @@ def droid_visualization(video, device="cuda:0"):
         with droid_visualization.video.get_lock():
             droid_visualization.video.dirty[:droid_visualization.video.counter.value] = True
 
+    #file dialog based pointcloud export added#
+    def export_pointcloud(vis):
+        gui.Application.instance.initialize()
+        window = gui.Application.instance.create_window("Export", 350, 600)
+
+        def _on_filedlg_cancel():
+            window.close_dialog()
+            window.close()
+            gui.Application.instance.quit()
+
+        def _on_filedlg_done(path):
+            pcd_export(path)
+            window.close_dialog()
+            gui.Application.instance.quit()
+
+        def exec_file_dialog():
+            filedlg = gui.FileDialog(gui.FileDialog.SAVE, "Select file", window.theme)
+
+            filedlg.add_filter(".ply .xyz .pcd", "PointCloud (.xyz .ply .pcd)")
+            filedlg.add_filter("", "All files")
+            filedlg.set_on_cancel(_on_filedlg_cancel)
+            filedlg.set_on_done(_on_filedlg_done)
+            window.show_dialog(filedlg)
+
+        def pcd_export(path):
+            print("\nExporting pointcloud as", path)
+            final_pcd = o3d.geometry.PointCloud()
+            for p in droid_visualization.points.items():
+                final_pcd += p[1] 
+            
+            o3d.io.write_point_cloud(path, final_pcd, write_ascii=False)
+            #vis.capture_depth_point_cloud("/home/bertuser/droidslam_export.ply")
+        
+        exec_file_dialog()
+
+    
     def animation_callback(vis):
         cam = vis.get_view_control().convert_to_pinhole_camera_parameters()
 
@@ -146,6 +185,11 @@ def droid_visualization(video, device="cuda:0"):
     vis.register_animation_callback(animation_callback)
     vis.register_key_callback(ord("S"), increase_filter)
     vis.register_key_callback(ord("A"), decrease_filter)
+    vis.register_key_callback(ord("E"), export_pointcloud)
+    
+    print("\n-------")
+    print("Press [S] to increase filter threshold, [A] to decrease, [E] to export the point cloud")
+    print("-------")
 
     vis.create_window(height=540, width=960)
     vis.get_render_option().load_from_json("misc/renderoption.json")
