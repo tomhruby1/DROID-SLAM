@@ -1,4 +1,5 @@
 # DROID-SLAM
+Added pcd export option to the visualization
 
 
 <!-- <center><img src="misc/DROID.png" width="640" style="center"></center> -->
